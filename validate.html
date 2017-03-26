@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+		<style>
+			*{padding: 0;margin: 0;}
+			body{width: 980px;margin: 0 auto; text-align: center;}
+			#app{text-align: left;}
+			.form-item{display: inline-block;text-indent:0em; *text-indent:0; *line-height:0; *font-size:0; vertical-align:top;}
+			.clearfix:after { 
+				content: "." ; 
+				display: block ;
+				height: 0 ;
+				clear: both ;
+				visibility: hidden ;
+			}
+			.w-80{width: 80px;}
+			.full-line{width: 100%;}
+			.right-auto{padding: 3px 8px;display: inline-block;}
+			.right-auto input {width: calc(100% - 2px);border: 1px solid #ccc;line-height: 24px;}
+			.position-relative{position: relative;left: 0;top: 0;}
+			.position-relative .deger{color: #f00;}
+			.position-relative .absol{position: absolute;width: 100%;z-index: 999;margin-left: 10px;display: none;}
+			.position-relative .active{display: inline-block;}
+			/*.form-item .validate-btn{border: 1px solid #ccc;background: blanchedalmond;padding:3px 8px;cursor: pointer;}
+			.form-item .validate-btn:hover{background: blueviolet;color: #fff;}*/
+			.mt-15{margin-top: 15px;}
+		</style>
+	</head>
+	<body>
+		<div id="app">
+			<form class="myform">
+				<div class="form-item full-line clearfix">
+					<span class="w-80">名字：</span>
+					<span class="right-auto position-relative"><input v-model="from.name" type="text" v-validate="formrule.name" /></span>
+				</div>
+				<div class="form-item full-line clearfix">
+					<span class="w-80">年龄：</span>
+					<span class="right-auto position-relative"><input v-model="from.age" type="text" v-validate="formrule.age" /></span>
+				</div>
+				<div class="form-item full-line clearfix">
+					<span class="w-80">地址：</span>
+					<span class="right-auto position-relative"><input v-model="from.address" type="text" /></span>
+				</div>
+				<div class="form-item full-line clearfix mt-15">
+					<validate-submit value="提交" :valid-rule="formrule" @valid-submit="mysubmit"></validate-submit>
+				</div>
+			</form>
+		</div>
+		
+		<script src="js/vue.min.js"></script>
+		<script>
+			var vm=new Vue({
+				el:"#app",
+				data:{
+					from:{
+						name:"",
+						age:"",
+						address:""
+					},
+					formrule:{
+						name:[
+							{required:true,trigger:'blur',message:'这是必填的'},
+							{type:"string",min:2,max:5,message:"长度在2-5个字符",trigger:"input"}
+						],
+						age:[
+							{type:"number",min:1,max:100,message:"年龄在1-100",trigger:"blur"},
+							{
+								validator:function(value,item){
+									if(!value||parseInt(value)!=value){
+										return false;
+									}
+									return true;
+								},
+								message:"年龄必须为整数",trigger:"blur"
+							}
+						]
+					}
+					
+				},
+				methods:{
+					mysubmit:function(valid){
+						if(valid==true){
+							console.log(valid);
+						}
+					}
+				},
+				components:{
+					"validate-submit":{
+						template:"<button :class='\"validate-btn\"' @click.prevent='submit'>{{value}}</button>",
+						data:function(){
+							return {
+								parentClass:null
+							}
+						},
+						props:["validRule","value"],
+						methods:{
+							submit:function(){
+								var _this=this;
+								var keys={};
+								var flag=false;
+								var rules=_this.validRule;
+								for(var key in rules){
+									keys[key]=rules[key];
+									flag=true;
+								}
+								
+								if(!flag){
+									return;
+								}
+								
+								if(!_this.parentClass){
+									(function(){
+										var parent=_this.$el.parentNode,element;
+										for(var i=1;i<4;i++){
+											if(parent.parentNode){
+												parent=parent.parentNode;
+												element=parent.querySelector("input[name]");
+												if(element){
+													_this.parentClass="validate-submit-class";
+													parent.className=parent.className?parent.className+" "+_this.parentClass:_this.parentClass;
+													break;
+												}
+											}
+										}
+									})();
+								}
+								
+								if(!_this.parentClass){
+									return false;
+								}
+								
+								var inputs=document.querySelector("."+_this.parentClass).querySelectorAll("input[name]");
+								var input,items,item,span,value,susess=true;
+								for(var j=0,jj=inputs.length;j<jj;j++){
+									input=inputs[j];
+									span=input.parentNode.lastChild;
+									items=keys[input.name];
+									flag=false;
+									value=input.value;
+									if(items&&items.length>0){
+										for(var i=0,ii=items.length;i<ii;i++){
+											item=items[i];
+											if(item.required==true){
+												if(!value){
+													flag=true;
+													break;
+												}
+											}
+											
+											if(item.type=="string"&&(item.min||item.max)){
+												if(item.min&&item.max&&(value.length<item.min||value.length>item.max)){
+													flag=true;
+													break;
+												}
+												
+												if(item.max&&value.length>item.max){
+													flag=true;
+													break;
+												}
+												
+												if(item.min&&value.length<item.min){
+													flag=true;
+													break;
+												}
+											}
+											
+											if(item.type=="number"){
+												if(isNaN(value)){
+													flag=true;
+													break;
+												}
+												
+												if(item.min&&item.max&&(value<item.min||value>item.max)){
+													flag=true;
+													break;
+												}
+												
+												if(item.max&&value>item.max){
+													flag=true;
+													break;
+												}
+												
+												if(item.min&&value<item.min){
+													flag=true;
+													break;
+												}
+											}
+											
+											if(typeof item.validator=="function"){
+												flag=item.validator.call(null,value,item)===false;
+												if(flag===true){
+													break;
+												}
+											}
+
+												
+										}
+										
+										if(flag===true){
+											if(!/ active$/i.test(span.className)){
+												span.className=span.className+" active";
+											}
+											span.innerHTML=item.message;
+											susess=false;
+										}else if(/ active$/i.test(span.className)){
+											span.className=span.className.replace(/ active/g,"");
+										}
+										
+										
+									}
+								}
+								_this.$emit("valid-submit",susess);
+							}
+						}
+					}
+				},
+				directives:{
+					validate:{
+						bind:function(el,binding){
+							if(binding.value&&binding.value.length>0){
+								var items=binding.value;								
+								var events={};
+								
+								(function(){
+									var item;
+									for(var i=0,ii=items.length;i<ii;i++){
+										item=items[i];
+										if(!item.trigger){
+											continue;
+										}
+										
+										if(!(item.trigger in events)){
+											events[item.trigger]=[];
+										}
+										
+										events[item.trigger].push(item);
+									}
+								})();
+								
+								(function(){
+									var allflag={};
+									for(var key in events){
+										(function(key){
+											el.addEventListener(key,function(){
+												var item,items,span=el.parentNode.lastChild,value=el.value,flag=false;
+												
+												if(!(this.name in allflag)){
+													allflag[this.name]={};
+												}
+												
+												items=events[key];
+												for(var i=0,ii=items.length;i<ii;i++){
+													item=items[i];
+													if(item.required==true){
+														if(!value){
+															flag=true;
+															break;
+														}
+													}
+													
+													if(item.type=="string"&&(item.min||item.max)){
+														if(item.min&&item.max&&(value.length<item.min||value.length>item.max)){
+															flag=true;
+															break;
+														}
+														
+														if(item.max&&value.length>item.max){
+															flag=true;
+															break;
+														}
+														
+														if(item.min&&value.length<item.min){
+															flag=true;
+															break;
+														}
+													}
+													
+													if(item.type=="number"){
+														if(isNaN(value)){
+															flag=true;
+															break;
+														}
+														
+														if(item.min&&item.max&&(value<item.min||value>item.max)){
+															flag=true;
+															break;
+														}
+														
+														if(item.max&&value>item.max){
+															flag=true;
+															break;
+														}
+														
+														if(item.min&&value<item.min){
+															flag=true;
+															break;
+														}
+													}
+													
+													if(typeof item.validator=="function"){
+														flag=item.validator.call(null,value,item)===false;
+														if(flag===true){
+															break;
+														}
+													}
+	
+														
+												}
+												
+												var flags=allflag[this.name];
+													flags[key]=flag;
+
+												if(flag===true){
+													if(!/ active$/i.test(span.className)){
+														span.className=span.className+" active";
+													}
+													span.innerHTML=item.message;
+													
+													return false;
+												}
+												
+												for(var flagkey in allflag[this.name]){
+													if(flags[flagkey]===true){
+														flag=true;
+														break;
+													}
+												}
+												
+												if(!flag&&/ active$/i.test(span.className)){
+													span.className=span.className.replace(/ active/g,"");
+												}
+												
+												
+											},false);	
+										})(key)
+										
+									}
+								})();
+							}
+
+						},
+						inserted:function(el,bindding){
+							var span=document.createElement("span");
+								span.className="deger absol";
+								var exp=bindding.expression;
+								el.name=exp?exp.slice(exp.lastIndexOf(".")+1):"";
+								el.parentNode.appendChild(span);
+						}
+					}
+				}
+			})
+		</script>
+	</body>
+</html>
